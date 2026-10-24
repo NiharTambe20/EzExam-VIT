@@ -1,0 +1,103 @@
+#### Java & Build Artifacts ####
+
+# Compiled class files
+backend/bin/
+*.class
+target/
+backend/target/
+**/target/
+
+# Package files (WAR, JAR, etc.)
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# JVM crash logs
+hs_err_pid*
+replay_pid*
+
+#### Database Credentials & Secrets ####
+
+# Sensitive database configuration
+backend/src/main/resources/db.properties
+**/db.properties
+db.properties
+
+# Do NOT ignore safe example files
+!backend/src/main/resources/db.properties.example
+!**/db.properties.example
+!db.properties.example
+
+# Environment variable and secret files
+.env
+.env.local
+.env.*.local
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+*.env
+
+# Do NOT ignore environment template/example files
+!.env.example
+!*.env.example
+!frontend/.env.example
+!frontend/.env.*.example
+
+#### Dependencies ####
+
+node_modules/
+frontend/node_modules/
+**/node_modules/
+
+#### Frontend Build Outputs ####
+
+dist/
+frontend/dist/
+frontend/dist-ssr/
+**/dist/
+
+#### Logs & Temporary Files ####
+
+*.log
+logs/
+**/logs/
+frontend/logs/
+frontend/*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+frontend/lerna-debug.log*
+*.tmp
+*.temp
+
+#### OS & IDE Specific Files ####
+
+# macOS & Windows system files
+.DS_Store
+Thumbs.db
+
+# JetBrains / IntelliJ IDEA
+.idea/
+*.iml
+
+# Visual Studio Code (preserves team extensions recommendations)
+.vscode/*
+!.vscode/extensions.json
+
+# Visual Studio / Other editors
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~

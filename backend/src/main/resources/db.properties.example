@@ -1,0 +1,32 @@
+# =============================================================================
+# EzExam Database Configuration Template
+# =============================================================================
+# INSTRUCTIONS:
+# 1. Copy this template to create your local 'db.properties' file:
+#    cp backend/src/main/resources/db.properties.example backend/src/main/resources/db.properties
+# 2. Update the placeholder values below with your local MySQL credentials.
+# 3. 'db.properties' is gitignored and will NOT be tracked by Git.
+#
+# ALTERNATIVE:
+# You can also supply credentials via environment variables without creating
+# db.properties:
+#   EZEXAM_DB_URL="jdbc:mysql://localhost:3306/ezexam?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+#   EZEXAM_DB_USER="your_database_user"
+#   EZEXAM_DB_PASSWORD="your_database_password"
+# =============================================================================
+
+# [REQUIRED] JDBC Connection URL:
+# Format: jdbc:mysql://<HOST>:<PORT>/<DATABASE_NAME>?<PARAMS>
+# - useSSL=false: Disable SSL for local dev (set to true in production with valid certs)
+# - allowPublicKeyRetrieval=true: Required for MySQL 8+ sha256_password / caching_sha2_password authentication
+# - serverTimezone=UTC: Ensures deterministic date/time handling across timezones
+db.url=jdbc:mysql://localhost:3306/ezexam?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+
+# [REQUIRED] MySQL Username:
+# Use 'root' for default local setup or a dedicated user (e.g., 'ezexam_app')
+db.user=your_db_username_here
+
+# [REQUIRED] MySQL Password:
+# Enter the password for the above user. Never commit real passwords to Git.
+db.password=your_db_password_here
+

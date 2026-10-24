@@ -1,0 +1,406 @@
+@import "tailwindcss";
+
+@theme {
+  --color-vit-primary: #48499A;
+  --color-vit-primary-hover: #3F408B;
+  --color-vit-primary-active: #353675;
+  --color-vit-primary-light: #F0F0FA;
+  --color-vit-sidebar: #1F1B47;
+  --color-vit-sidebar-surface: #282357;
+  --color-vit-sidebar-text: #B2B3D6;
+  --color-vit-bg: #F8F9FE;
+  --font-sans: 'Inter', 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+:root {
+  /* Brand & Core Color Tokens — VIT Mumbai (#48499A Identity) */
+  --color-primary: #48499A;
+  --color-primary-hover: #3F408B;
+  --color-primary-active: #353675;
+  --color-primary-light: #F0F0FA;
+  --color-primary-muted: #E2E2F2;
+
+  /* Structure Colors */
+  --color-sidebar: #1F1B47;
+  --color-sidebar-surface: #282357;
+  --color-sidebar-text: #B2B3D6;
+  --color-sidebar-text-active: #FFFFFF;
+  --color-sidebar-border: #282357;
+  --color-sidebar-hover: rgba(255, 255, 255, 0.08);
+
+  --color-bg: #F8F9FE;
+  --color-surface: #FFFFFF;
+  --color-surface-hover: #F9FAFB;
+  --color-text: #111827;
+  --color-text-secondary: #374151;
+  --color-muted: #6B7280;
+  --color-border: #E5E7EB;
+  --color-border-light: #F3F4F6;
+
+  /* Feedback & Status */
+  --color-success: #10B981;
+  --color-success-bg: #ECFDF5;
+  --color-success-border: #A7F3D0;
+  --color-success-text: #065F46;
+
+  --color-warning: #F59E0B;
+  --color-warning-bg: #FFFBEB;
+  --color-warning-border: #FDE68A;
+  --color-warning-text: #92400E;
+
+  --color-danger: #EF4444;
+  --color-danger-bg: #FEF2F2;
+  --color-danger-border: #FECACA;
+  --color-danger-text: #991B1B;
+
+  --color-info: #0284C7;
+  --color-info-bg: #F0F9FF;
+  --color-info-border: #BAE6FD;
+  --color-info-text: #075985;
+
+  /* Elevation / Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+  --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.03);
+  --shadow-card-hover: 0 4px 14px -2px rgba(72, 73, 154, 0.12), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 9999px;
+
+  /* Typography */
+  --font-family: 'Inter', 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Explicit tabular numerals utility for clean, aligned numbers in Inter */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  -moz-font-feature-settings: "tnum";
+  -webkit-font-feature-settings: "tnum";
+  font-feature-settings: "tnum";
+}
+
+/* ==========================================================================
+   Split-Screen Login & Register Styles (CampusOs Exact Visual Identity)
+   ========================================================================== */
+
+.login-page {
+  display: flex;
+  min-height: 100vh;
+  width: 100vw;
+  background-color: #ffffff;
+  overflow-x: hidden;
+}
+
+.login-image-panel {
+  flex: 1;
+  width: 50%;
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+  background-color: #1F1B47;
+}
+
+.login-campus-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.login-form-panel {
+  flex: 1;
+  width: 50%;
+  min-height: 100vh;
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
+  overflow-y: auto;
+}
+
+.login-form-wrapper {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+}
+
+.login-header-group {
+  margin-bottom: 24px;
+}
+
+.login-logo-lockup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.login-logo-img {
+  height: 48px;
+  width: auto;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.login-brand-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.login-brand-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #48499A;
+  letter-spacing: -0.01em;
+}
+
+.login-brand-institute {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #6B7280;
+}
+
+.login-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+  line-height: 1.2;
+}
+
+.login-subtitle {
+  font-size: 13.5px;
+  color: #6B7280;
+  line-height: 1.5;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.login-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.login-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.login-input {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 14px;
+  color: #111827;
+  background-color: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.login-input:focus {
+  border-color: #48499A;
+  box-shadow: 0 0 0 3px rgba(72, 73, 154, 0.14);
+}
+
+.login-input.error {
+  border-color: #ef4444;
+}
+
+.login-input.has-icon {
+  padding-right: 42px;
+}
+
+.login-password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6B7280;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.login-password-toggle:hover {
+  color: #48499A;
+}
+
+.login-field-error {
+  font-size: 12px;
+  color: #ef4444;
+  margin-top: 2px;
+}
+
+.login-submit-btn {
+  width: 100%;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  background-color: #48499A;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.login-submit-btn:hover:not(:disabled) {
+  background-color: #3F408B;
+}
+
+.login-submit-btn:active:not(:disabled) {
+  background-color: #353675;
+}
+
+.login-submit-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .login-image-panel {
+    display: none;
+  }
+  .login-form-panel {
+    width: 100%;
+    padding: 32px 20px;
+  }
+}
+
+/* ==========================================================================
+   Institutional Cards, Tables, and Component Classes
+   ========================================================================== */
+
+.vit-card {
+  background: #FFFFFF;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.vit-card-hover:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: #D1D5DB;
+}
+
+.vit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 9999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.vit-badge-primary {
+  background-color: #F0F0FA;
+  color: #48499A;
+  border: 1px solid #E2E2F2;
+}
+
+.vit-badge-success {
+  background-color: #ECFDF5;
+  color: #047857;
+  border: 1px solid #A7F3D0;
+}
+
+.vit-badge-warning {
+  background-color: #FFFBEB;
+  color: #B45309;
+  border: 1px solid #FDE68A;
+}
+
+.vit-badge-danger {
+  background-color: #FEF2F2;
+  color: #B91C1C;
+  border: 1px solid #FECACA;
+}
+
+/* Institutional Table Styles */
+.vit-table-container {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: #FFFFFF;
+  box-shadow: var(--shadow-card);
+}
+
+.vit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  text-align: left;
+}
+
+.vit-table th {
+  padding: 12px 18px;
+  background-color: #F8F9FE;
+  color: #4B5563;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.vit-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-border-light);
+  color: #111827;
+  vertical-align: middle;
+}
+
+.vit-table tbody tr:hover {
+  background-color: #FAF5FF;
+}
+
+.vit-table tbody tr:last-child td {
+  border-bottom: none;
+}
