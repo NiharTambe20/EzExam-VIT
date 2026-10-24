@@ -1,0 +1,6 @@
+target/
+bin/
+*.log
+*.DS_Store
+Thumbs.db
+src/main/resources/db.properties

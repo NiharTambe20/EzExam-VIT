@@ -1,0 +1,13 @@
+.git
+.gitignore
+.vscode
+docs
+frontend/node_modules
+frontend/dist
+backend/target
+backend/bin
+*.log
+*.DS_Store
+Thumbs.db
+setup-db.sh
+backend/src/main/resources/db.properties
