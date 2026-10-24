@@ -31,19 +31,32 @@ public class AttemptDAO {
     }
 
     public Attempt findById(int attemptId) throws SQLException {
-        String sql = "SELECT a.*, e.title AS exam_title, u.name AS student_name " +
+        try (Connection con = DBConnection.getConnection()) {
+            return findById(con, attemptId);
+        }
+    }
+
+    public Attempt findById(Connection con, int attemptId) throws SQLException {
+        String sql = "SELECT a.*, e.title AS exam_title, e.negative_mark, e.passing_percentage, u.name AS student_name " +
                      "FROM attempts a " +
                      "JOIN exams e ON a.exam_id = e.id " +
                      "JOIN users u ON a.user_id = u.id " +
                      "WHERE a.id = ?";
 
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, attemptId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     Attempt at = mapRow(rs);
                     at.setStudentName(rs.getString("student_name"));
+                    try {
+                        double neg = rs.getDouble("negative_mark");
+                        if (!rs.wasNull()) at.setNegativeMark(neg);
+                    } catch (SQLException ignored) {}
+                    try {
+                        int pass = rs.getInt("passing_percentage");
+                        if (!rs.wasNull()) at.setPassingPercentage(pass);
+                    } catch (SQLException ignored) {}
                     return at;
                 }
             }
@@ -53,7 +66,7 @@ public class AttemptDAO {
 
     public Attempt create(int examId, int userId) throws SQLException {
         String sql = "INSERT INTO attempts (user_id, exam_id, status, start_time) VALUES (?, ?, 'in-progress', ?)";
-        Timestamp now = new Timestamp(System.currentTimeMillis());
+        Timestamp now = new Timestamp((System.currentTimeMillis() / 1000) * 1000);
 
         try (Connection con = DBConnection.getConnection();
              PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -63,7 +76,7 @@ public class AttemptDAO {
             ps.executeUpdate();
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 if (rs.next()) {
-                    return findById(rs.getInt(1));
+                    return findById(con, rs.getInt(1));
                 }
             }
         }
@@ -73,62 +86,75 @@ public class AttemptDAO {
     public boolean submitAttempt(int attemptId, double score, int total, int correct,
                                   int wrong, int unanswered, double percentage, boolean passed,
                                   List<AttemptAnswer> answers) throws SQLException {
+        Timestamp now = new Timestamp((System.currentTimeMillis() / 1000) * 1000);
+        try (Connection con = DBConnection.getConnection()) {
+            return submitAttempt(con, attemptId, now, score, total, correct, wrong, unanswered, percentage, passed, answers);
+        }
+    }
+
+    public boolean submitAttempt(Connection con, int attemptId, Timestamp now, double score, int total, int correct,
+                                  int wrong, int unanswered, double percentage, boolean passed,
+                                  List<AttemptAnswer> answers) throws SQLException {
         String updateAttempt = "UPDATE attempts SET status = 'submitted', submitted_at = ?, score = ?, " +
                                "total = ?, correct = ?, wrong = ?, unanswered = ?, percentage = ?, passed = ? " +
                                "WHERE id = ? AND status = 'in-progress'";
         String insertAns = "INSERT INTO attempt_answers (attempt_id, question_id, selected_option_id, is_correct, marks_awarded) " +
                            "VALUES (?, ?, ?, ?, ?)";
-        Timestamp now = new Timestamp(System.currentTimeMillis());
 
-        try (Connection con = DBConnection.getConnection()) {
-            con.setAutoCommit(false);
-            try {
-                int updatedRows;
-                try (PreparedStatement psAt = con.prepareStatement(updateAttempt)) {
-                    psAt.setTimestamp(1, now);
-                    psAt.setDouble(2, score);
-                    psAt.setInt(3, total);
-                    psAt.setInt(4, correct);
-                    psAt.setInt(5, wrong);
-                    psAt.setInt(6, unanswered);
-                    psAt.setDouble(7, percentage);
-                    psAt.setBoolean(8, passed);
-                    psAt.setInt(9, attemptId);
-                    updatedRows = psAt.executeUpdate();
-                }
-
-                if (updatedRows == 0) {
-                    // Attempt was already submitted or not found; rollback and return false
-                    con.rollback();
-                    return false;
-                }
-
-                if (answers != null && !answers.isEmpty()) {
-                    try (PreparedStatement psAns = con.prepareStatement(insertAns)) {
-                        for (AttemptAnswer ans : answers) {
-                            psAns.setInt(1, attemptId);
-                            psAns.setInt(2, ans.getQuestionId());
-                            if (ans.getSelectedOptionId() != null) {
-                                psAns.setInt(3, ans.getSelectedOptionId());
-                            } else {
-                                psAns.setNull(3, Types.INTEGER);
-                            }
-                            psAns.setBoolean(4, Boolean.TRUE.equals(ans.getIsCorrect()));
-                            psAns.setDouble(5, ans.getMarksAwarded() != null ? ans.getMarksAwarded() : 0.0);
-                            psAns.addBatch();
-                        }
-                        psAns.executeBatch();
-                    }
-                }
-
-                con.commit();
-                return true;
-            } catch (SQLException e) {
-                con.rollback();
-                throw e;
-            } finally {
-                con.setAutoCommit(true);
+        boolean originalAutoCommit = con.getAutoCommit();
+        con.setAutoCommit(false);
+        try {
+            int updatedRows;
+            try (PreparedStatement psAt = con.prepareStatement(updateAttempt)) {
+                psAt.setTimestamp(1, now);
+                psAt.setDouble(2, score);
+                psAt.setInt(3, total);
+                psAt.setInt(4, correct);
+                psAt.setInt(5, wrong);
+                psAt.setInt(6, unanswered);
+                psAt.setDouble(7, percentage);
+                psAt.setBoolean(8, passed);
+                psAt.setInt(9, attemptId);
+                updatedRows = psAt.executeUpdate();
             }
+
+            if (updatedRows == 0) {
+                // Attempt was already submitted or not found; rollback and return false
+                con.rollback();
+                return false;
+            }
+
+            if (answers != null && !answers.isEmpty()) {
+                try (PreparedStatement psAns = con.prepareStatement(insertAns)) {
+                    for (AttemptAnswer ans : answers) {
+                        psAns.setInt(1, attemptId);
+                        psAns.setInt(2, ans.getQuestionId());
+                        if (ans.getSelectedOptionId() != null) {
+                            psAns.setInt(3, ans.getSelectedOptionId());
+                        } else {
+                            psAns.setNull(3, Types.INTEGER);
+                        }
+                        psAns.setBoolean(4, Boolean.TRUE.equals(ans.getIsCorrect()));
+                        psAns.setDouble(5, ans.getMarksAwarded() != null ? ans.getMarksAwarded() : 0.0);
+                        psAns.addBatch();
+                    }
+                    psAns.executeBatch();
+                }
+            }
+
+            con.commit();
+            return true;
+        } catch (SQLException e) {
+            try {
+                con.rollback();
+            } catch (SQLException rollbackEx) {
+                e.addSuppressed(rollbackEx);
+            }
+            throw e;
+        } finally {
+            try {
+                con.setAutoCommit(originalAutoCommit);
+            } catch (SQLException ignored) {}
         }
     }
 

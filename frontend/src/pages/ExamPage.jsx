@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Question from "../components/Question";
 import QuestionPalette from "../components/QuestionPalette";
 import Timer from "../components/Timer";
 import { apiGetExam, apiStartAttempt, apiSubmitAttempt } from "../services/api";
+import {
+  loadPersistedAnswers,
+  savePersistedAnswers,
+  clearPersistedAnswers,
+} from "../services/examStorage";
 import { useAuth } from "../context/AuthContext";
 import {
   ChevronLeft,
@@ -21,7 +26,6 @@ export default function ExamPage() {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [exam, setExam] = useState(null);
   const [attempt, setAttempt] = useState(null);
@@ -33,39 +37,76 @@ export default function ExamPage() {
   const [showExitModal, setShowExitModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
   const submittedRef = useRef(false);
+  const attemptRef = useRef(null);
+  const answersRef = useRef({});
 
   useEffect(() => {
+    let isMounted = true;
     (async () => {
       try {
         const [ex, at] = await Promise.all([
           apiGetExam(id),
           apiStartAttempt(id, user?.id),
         ]);
-        if (location.state?.attemptId && at.id !== location.state.attemptId && at.status === "in-progress") {
-          // honour existing in-progress attempt
+        if (!isMounted) return;
+
+        // Check if attempt is already completed/submitted
+        if (at.status !== "in-progress") {
+          clearPersistedAnswers(at.id);
+          if (at.status === "submitted") {
+            navigate(`/results/${at.id}`, { replace: true });
+            return;
+          }
         }
+
         setExam(ex);
         setAttempt(at);
+        attemptRef.current = at;
+
+        // Restore saved answers from sessionStorage for this attempt ID
+        const savedAnswers = loadPersistedAnswers(at.id);
+        if (savedAnswers && Object.keys(savedAnswers).length > 0) {
+          setAnswers(savedAnswers);
+          answersRef.current = savedAnswers;
+        }
       } catch (err) {
-        setError(err?.message || "Unable to load the examination. Please try again.");
+        if (isMounted) {
+          setError(err?.message || "Unable to load the examination. Please try again.");
+        }
       }
     })();
-  }, [id, user?.id, location.state]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id, user?.id, navigate]);
 
   const submit = useCallback(async () => {
-    if (submittedRef.current || !attempt) return;
+    const at = attemptRef.current;
+    if (submittedRef.current || !at) return;
     submittedRef.current = true;
     setSubmitting(true);
+    setError("");
+
+    // ALWAYS use the latest answers from answersRef (or sessionStorage fallback)
+    let answersToSubmit = answersRef.current;
+    if (!answersToSubmit || Object.keys(answersToSubmit).length === 0) {
+      answersToSubmit = loadPersistedAnswers(at.id);
+    }
+
     try {
-      const result = await apiSubmitAttempt(attempt.id, answers, user?.id);
+      const result = await apiSubmitAttempt(at.id, answersToSubmit || {}, user?.id);
+      // Clear locally saved answers only after confirmed successful submission
+      clearPersistedAnswers(at.id);
       navigate(`/results/${result.id}`, { replace: true });
     } catch (err) {
       submittedRef.current = false;
       setError(err?.message || "Unable to submit your examination. Please try again.");
       setSubmitting(false);
     }
-  }, [attempt, answers, user?.id, navigate]);
+  }, [user, navigate]);
 
   // Handle safe exit back to student dashboard without submission
   const handleExit = () => {
@@ -93,10 +134,10 @@ export default function ExamPage() {
 
   const counts = useMemo(() => {
     const answered = Object.keys(answers).length;
-    const total = exam?.questions.length ?? 0;
+    const total = exam?.questions?.length ?? 0;
     return {
       answered,
-      unanswered: total - answered,
+      unanswered: Math.max(0, total - answered),
       reviewCount: marked.size,
     };
   }, [answers, exam, marked]);
@@ -125,7 +166,17 @@ export default function ExamPage() {
 
   const q = exam.questions[current];
 
-  const select = (qid, oid) => setAnswers((a) => ({ ...a, [qid]: oid }));
+  const select = (qid, oid) => {
+    setAnswers((prev) => {
+      const next = { ...prev, [qid]: oid };
+      answersRef.current = next;
+      const atId = attemptRef.current?.id;
+      if (atId) {
+        savePersistedAnswers(atId, next);
+      }
+      return next;
+    });
+  };
   const jump = (i) => {
     setCurrent(i);
     setVisited((v) => new Set(v).add(i));

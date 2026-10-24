@@ -12,7 +12,7 @@ export default function QuestionPalette({
   const stateOf = (q, i) => {
     const answered = answers[q.id] != null;
     const isMarked = marked.has(q.id);
-    const isVisited = visited.has(q.id) || i === current;
+    const isVisited = visited.has(i) || visited.has(q.id) || answered || i === current;
     if (answered && isMarked) return "answered-review";
     if (answered) return "answered";
     if (isMarked) return "review";

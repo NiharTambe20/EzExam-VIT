@@ -33,6 +33,10 @@ public class Attempt {
     @SerializedName("student_name")
     private String studentName;
 
+    // Transient fields loaded from exam JOIN to eliminate sequential exam lookups during evaluation
+    private transient Double negativeMark;
+    private transient Integer passingPercentage;
+
     public Attempt() {}
 
     public Integer getId() {
@@ -153,5 +157,21 @@ public class Attempt {
 
     public void setStudentName(String studentName) {
         this.studentName = studentName;
+    }
+
+    public Double getNegativeMark() {
+        return negativeMark;
+    }
+
+    public void setNegativeMark(Double negativeMark) {
+        this.negativeMark = negativeMark;
+    }
+
+    public Integer getPassingPercentage() {
+        return passingPercentage;
+    }
+
+    public void setPassingPercentage(Integer passingPercentage) {
+        this.passingPercentage = passingPercentage;
     }
 }

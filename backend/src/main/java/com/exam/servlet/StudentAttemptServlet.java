@@ -47,15 +47,31 @@ public class StudentAttemptServlet extends BaseServlet {
                     return;
                 }
 
-                // Extract answersMap: can be { "101": 1002 } or { "answers": { "101": 1002 } }
+                // Extract answersMap: can be { "101": 1002 }, { "answers": { "101": 1002 } }, or { "answers": "{\"101\": 1002}" }
                 Map<String, Object> answersMap = new HashMap<>();
-                JsonObject answersObj = body.has("answers") && body.get("answers").isJsonObject()
-                        ? body.getAsJsonObject("answers")
-                        : body;
+                JsonObject answersObj = null;
+                if (body.has("answers")) {
+                    JsonElement answersElem = body.get("answers");
+                    if (answersElem.isJsonObject()) {
+                        answersObj = answersElem.getAsJsonObject();
+                    } else if (answersElem.isJsonPrimitive() && answersElem.getAsJsonPrimitive().isString()) {
+                        try {
+                            JsonElement parsed = com.google.gson.JsonParser.parseString(answersElem.getAsString());
+                            if (parsed.isJsonObject()) {
+                                answersObj = parsed.getAsJsonObject();
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+                if (answersObj == null) {
+                    answersObj = body;
+                }
 
                 for (Map.Entry<String, JsonElement> entry : answersObj.entrySet()) {
                     if (!"userId".equalsIgnoreCase(entry.getKey())) {
-                        if (entry.getValue().isJsonPrimitive() && entry.getValue().getAsJsonPrimitive().isNumber()) {
+                        if (entry.getValue() == null || entry.getValue().isJsonNull()) {
+                            answersMap.put(entry.getKey(), null);
+                        } else if (entry.getValue().isJsonPrimitive() && entry.getValue().getAsJsonPrimitive().isNumber()) {
                             answersMap.put(entry.getKey(), entry.getValue().getAsInt());
                         } else if (entry.getValue().isJsonPrimitive() && entry.getValue().getAsJsonPrimitive().isString()) {
                             try {

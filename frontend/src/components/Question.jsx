@@ -30,7 +30,7 @@ export default function Question({ question, index, selectedOptionId, onSelect }
         aria-label={`Question ${index + 1}`}
       >
         {question.options.map((opt, optIdx) => {
-          const active = selectedOptionId === opt.id;
+          const active = selectedOptionId != null && String(selectedOptionId) === String(opt.id);
           const letter = letters[optIdx] ?? String(optIdx + 1);
 
           return (

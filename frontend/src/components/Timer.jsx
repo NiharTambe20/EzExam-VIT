@@ -1,27 +1,50 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Clock, AlertTriangle } from "lucide-react";
-
-export function formatSeconds(total) {
-  const m = Math.floor(Math.max(0, total) / 60);
-  const s = Math.max(0, total) % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
+import { formatSeconds, parseStartTime, computeRemaining } from "../utils/timerUtils";
 
 // PRD §12 — countdown display; auto-submit handled by parent via onExpire.
 export default function Timer({ durationMinutes, startTime, onExpire }) {
-  const [remaining, setRemaining] = useState(durationMinutes * 60);
+  const [remaining, setRemaining] = useState(() =>
+    computeRemaining(durationMinutes, startTime)
+  );
+  const hasExpiredRef = useRef(false);
+  const onExpireRef = useRef(onExpire);
 
   useEffect(() => {
-    const end = new Date(startTime).getTime() + durationMinutes * 60 * 1000;
+    onExpireRef.current = onExpire;
+  }, [onExpire]);
+
+  useEffect(() => {
+    const startMs = parseStartTime(startTime);
+    if (startMs === null || !durationMinutes) {
+      return;
+    }
+
+    const endMs = startMs + Number(durationMinutes) * 60 * 1000;
+
     const tick = () => {
-      const left = Math.max(0, Math.round((end - Date.now()) / 1000));
+      const left = Math.max(0, Math.round((endMs - Date.now()) / 1000));
       setRemaining(left);
-      if (left <= 0) onExpire?.();
+      if (left <= 0) {
+        if (!hasExpiredRef.current) {
+          hasExpiredRef.current = true;
+          onExpireRef.current?.();
+        }
+      }
     };
-    tick();
+
+    // If already expired at effect setup, notify once and avoid starting interval
+    const currentLeft = Math.max(0, Math.round((endMs - Date.now()) / 1000));
+    if (currentLeft <= 0) {
+      if (!hasExpiredRef.current) {
+        hasExpiredRef.current = true;
+        onExpireRef.current?.();
+      }
+      return;
+    }
+
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [durationMinutes, startTime]);
 
   const danger = remaining < 300;

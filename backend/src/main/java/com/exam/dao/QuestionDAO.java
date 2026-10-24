@@ -6,95 +6,105 @@ import com.exam.util.DBConnection;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class QuestionDAO {
 
     public List<Question> findByExamId(int examId, boolean includeAnswers) throws SQLException {
-        String qSql = "SELECT id, exam_id, question_text, marks, negative_marks FROM questions WHERE exam_id = ? ORDER BY id ASC";
-        String optSql = "SELECT id, question_id, text, is_correct FROM options WHERE question_id = ? ORDER BY id ASC";
+        try (Connection con = DBConnection.getConnection()) {
+            return findByExamId(con, examId, includeAnswers);
+        }
+    }
 
-        List<Question> questions = new ArrayList<>();
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement psQ = con.prepareStatement(qSql)) {
-            psQ.setInt(1, examId);
-            try (ResultSet rsQ = psQ.executeQuery()) {
-                while (rsQ.next()) {
-                    Question q = new Question();
-                    int qId = rsQ.getInt("id");
-                    q.setId(qId);
-                    q.setExamId(rsQ.getInt("exam_id"));
-                    q.setQuestionText(rsQ.getString("question_text"));
-                    q.setMarks(rsQ.getInt("marks"));
-                    q.setNegativeMarks(rsQ.getDouble("negative_marks"));
+    public List<Question> findByExamId(Connection con, int examId, boolean includeAnswers) throws SQLException {
+        String sql = "SELECT q.id AS q_id, q.exam_id AS q_exam_id, q.question_text AS q_question_text, " +
+                     "q.marks AS q_marks, q.negative_marks AS q_negative_marks, " +
+                     "o.id AS o_id, o.question_id AS o_question_id, o.text AS o_text, o.is_correct AS o_is_correct " +
+                     "FROM questions q " +
+                     "LEFT JOIN options o ON q.id = o.question_id " +
+                     "WHERE q.exam_id = ? " +
+                     "ORDER BY q.id ASC, o.id ASC";
 
-                    // Fetch child options
-                    try (PreparedStatement psOpt = con.prepareStatement(optSql)) {
-                        psOpt.setInt(1, qId);
-                        try (ResultSet rsOpt = psOpt.executeQuery()) {
-                            List<Option> options = new ArrayList<>();
-                            while (rsOpt.next()) {
-                                Option opt = new Option();
-                                opt.setId(rsOpt.getInt("id"));
-                                opt.setQuestionId(qId);
-                                opt.setText(rsOpt.getString("text"));
-                                if (includeAnswers) {
-                                    opt.setIsCorrect(rsOpt.getBoolean("is_correct"));
-                                } else {
-                                    opt.setIsCorrect(null); // Never leak is_correct to students!
-                                }
-                                options.add(opt);
-                            }
-                            q.setOptions(options);
-                        }
+        Map<Integer, Question> questionMap = new LinkedHashMap<>();
+
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, examId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    int qId = rs.getInt("q_id");
+                    Question q = questionMap.get(qId);
+                    if (q == null) {
+                        q = new Question();
+                        q.setId(qId);
+                        q.setExamId(rs.getInt("q_exam_id"));
+                        q.setQuestionText(rs.getString("q_question_text"));
+                        q.setMarks(rs.getInt("q_marks"));
+                        q.setNegativeMarks(rs.getDouble("q_negative_marks"));
+                        questionMap.put(qId, q);
                     }
-                    questions.add(q);
+
+                    int optId = rs.getInt("o_id");
+                    if (!rs.wasNull()) {
+                        Option opt = new Option();
+                        opt.setId(optId);
+                        opt.setQuestionId(qId);
+                        opt.setText(rs.getString("o_text"));
+                        if (includeAnswers) {
+                            opt.setIsCorrect(rs.getBoolean("o_is_correct"));
+                        } else {
+                            opt.setIsCorrect(null); // Never leak is_correct to students!
+                        }
+                        q.getOptions().add(opt);
+                    }
                 }
             }
         }
-        return questions;
+        return new ArrayList<>(questionMap.values());
     }
 
     public Question findById(int id, boolean includeAnswers) throws SQLException {
-        String qSql = "SELECT id, exam_id, question_text, marks, negative_marks FROM questions WHERE id = ?";
-        String optSql = "SELECT id, question_id, text, is_correct FROM options WHERE question_id = ? ORDER BY id ASC";
+        String sql = "SELECT q.id AS q_id, q.exam_id AS q_exam_id, q.question_text AS q_question_text, " +
+                     "q.marks AS q_marks, q.negative_marks AS q_negative_marks, " +
+                     "o.id AS o_id, o.question_id AS o_question_id, o.text AS o_text, o.is_correct AS o_is_correct " +
+                     "FROM questions q " +
+                     "LEFT JOIN options o ON q.id = o.question_id " +
+                     "WHERE q.id = ? " +
+                     "ORDER BY o.id ASC";
 
+        Question q = null;
         try (Connection con = DBConnection.getConnection();
-             PreparedStatement psQ = con.prepareStatement(qSql)) {
-            psQ.setInt(1, id);
-            try (ResultSet rsQ = psQ.executeQuery()) {
-                if (rsQ.next()) {
-                    Question q = new Question();
-                    q.setId(rsQ.getInt("id"));
-                    q.setExamId(rsQ.getInt("exam_id"));
-                    q.setQuestionText(rsQ.getString("question_text"));
-                    q.setMarks(rsQ.getInt("marks"));
-                    q.setNegativeMarks(rsQ.getDouble("negative_marks"));
-
-                    try (PreparedStatement psOpt = con.prepareStatement(optSql)) {
-                        psOpt.setInt(1, id);
-                        try (ResultSet rsOpt = psOpt.executeQuery()) {
-                            List<Option> options = new ArrayList<>();
-                            while (rsOpt.next()) {
-                                Option opt = new Option();
-                                opt.setId(rsOpt.getInt("id"));
-                                opt.setQuestionId(id);
-                                opt.setText(rsOpt.getString("text"));
-                                if (includeAnswers) {
-                                    opt.setIsCorrect(rsOpt.getBoolean("is_correct"));
-                                } else {
-                                    opt.setIsCorrect(null);
-                                }
-                                options.add(opt);
-                            }
-                            q.setOptions(options);
-                        }
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    if (q == null) {
+                        q = new Question();
+                        q.setId(rs.getInt("q_id"));
+                        q.setExamId(rs.getInt("q_exam_id"));
+                        q.setQuestionText(rs.getString("q_question_text"));
+                        q.setMarks(rs.getInt("q_marks"));
+                        q.setNegativeMarks(rs.getDouble("q_negative_marks"));
                     }
-                    return q;
+
+                    int optId = rs.getInt("o_id");
+                    if (!rs.wasNull()) {
+                        Option opt = new Option();
+                        opt.setId(optId);
+                        opt.setQuestionId(q.getId());
+                        opt.setText(rs.getString("o_text"));
+                        if (includeAnswers) {
+                            opt.setIsCorrect(rs.getBoolean("o_is_correct"));
+                        } else {
+                            opt.setIsCorrect(null); // Never leak is_correct to students!
+                        }
+                        q.getOptions().add(opt);
+                    }
                 }
             }
         }
-        return null;
+        return q;
     }
 
     public Question create(int examId, String questionText, int marks, double negativeMarks,

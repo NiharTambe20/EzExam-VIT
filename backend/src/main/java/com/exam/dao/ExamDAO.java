@@ -37,6 +37,12 @@ public class ExamDAO {
     }
 
     public Exam findById(int id, boolean includeQuestions, boolean includeAnswers) throws SQLException {
+        try (Connection con = DBConnection.getConnection()) {
+            return findById(con, id, includeQuestions, includeAnswers);
+        }
+    }
+
+    public Exam findById(Connection con, int id, boolean includeQuestions, boolean includeAnswers) throws SQLException {
         String sql = "SELECT e.id, e.title, e.description, e.duration_minutes, e.total_marks, " +
                      "e.passing_percentage, e.negative_mark, e.status, e.start_time, e.end_time, e.created_by, " +
                      "COUNT(q.id) AS question_count " +
@@ -46,15 +52,14 @@ public class ExamDAO {
                      "GROUP BY e.id, e.title, e.description, e.duration_minutes, e.total_marks, " +
                      "e.passing_percentage, e.negative_mark, e.status, e.start_time, e.end_time, e.created_by";
 
-        try (Connection con = DBConnection.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     Exam exam = mapRow(rs);
                     exam.setQuestionCount(rs.getInt("question_count"));
                     if (includeQuestions) {
-                        exam.setQuestions(questionDAO.findByExamId(id, includeAnswers));
+                        exam.setQuestions(questionDAO.findByExamId(con, id, includeAnswers));
                     }
                     return exam;
                 }
