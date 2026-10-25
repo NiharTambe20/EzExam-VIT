@@ -17,25 +17,37 @@ public class StudentResultServlet extends BaseServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        User user = getAuthenticatedUser(req);
+        if (user == null) {
+            sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, "Authentication required to view examination results.");
+            return;
+        }
+
         String path = req.getPathInfo();
 
         try {
             if (path == null || path.equals("/") || path.isBlank()) {
-                // GET /api/student/results?userId=2
-                User user = getAuthenticatedUser(req);
-                Integer userId = user != null ? user.getId() : null;
-
+                // GET /api/student/results or /api/student/results?userId=X
                 String userParam = req.getParameter("userId");
-                if (userParam != null && !userParam.isBlank()) {
-                    userId = Integer.parseInt(userParam);
+                int targetUserId = user.getId();
+
+                if (!"admin".equalsIgnoreCase(user.getRole())) {
+                    // Students can only access their own results. Reject conflicting query parameter.
+                    if (userParam != null && !userParam.isBlank()) {
+                        int requestedId = Integer.parseInt(userParam);
+                        if (requestedId != user.getId()) {
+                            sendError(resp, HttpServletResponse.SC_FORBIDDEN, "Access denied: Cannot view another student's results.");
+                            return;
+                        }
+                    }
+                } else {
+                    // Admin can query any student's results if requested
+                    if (userParam != null && !userParam.isBlank()) {
+                        targetUserId = Integer.parseInt(userParam);
+                    }
                 }
 
-                if (userId == null) {
-                    sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "User ID is required to fetch results.");
-                    return;
-                }
-
-                List<Attempt> list = attemptDAO.findByUserId(userId);
+                List<Attempt> list = attemptDAO.findByUserId(targetUserId);
                 sendJson(resp, HttpServletResponse.SC_OK, list);
             } else {
                 // GET /api/student/results/{id}
@@ -49,8 +61,7 @@ public class StudentResultServlet extends BaseServlet {
                 }
 
                 // Security: ensure students can only view their own results
-                User user = getAuthenticatedUser(req);
-                if (user != null && !"admin".equalsIgnoreCase(user.getRole()) && !user.getId().equals(attempt.getUserId())) {
+                if (!"admin".equalsIgnoreCase(user.getRole()) && !user.getId().equals(attempt.getUserId())) {
                     sendError(resp, HttpServletResponse.SC_FORBIDDEN, "Access denied: Cannot view another student's result.");
                     return;
                 }

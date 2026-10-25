@@ -30,22 +30,31 @@ public class StudentAttemptServlet extends BaseServlet {
                 int attemptId = Integer.parseInt(idStr);
 
                 User user = getAuthenticatedUser(req);
-                Integer userId = user != null ? user.getId() : null;
+                if (user == null) {
+                    sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, "Authentication required to submit an examination.");
+                    return;
+                }
 
                 JsonObject body = parseJson(req, JsonObject.class);
                 if (body == null) {
                     body = new JsonObject();
                 }
 
-                // If no session user, check if body carries userId (for testing/flexibility)
-                if (userId == null && body.has("userId")) {
-                    userId = body.get("userId").getAsInt();
+                // Reject conflicting userId if supplied in request body
+                if (body.has("userId")) {
+                    try {
+                        int suppliedUserId = body.get("userId").getAsInt();
+                        if (suppliedUserId != user.getId()) {
+                            sendError(resp, HttpServletResponse.SC_FORBIDDEN, "Cannot submit an attempt on behalf of another user.");
+                            return;
+                        }
+                    } catch (Exception e) {
+                        sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid userId format in request.");
+                        return;
+                    }
                 }
 
-                if (userId == null) {
-                    sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, "Authentication required to submit an examination.");
-                    return;
-                }
+                int userId = user.getId();
 
                 // Extract answersMap: can be { "101": 1002 }, { "answers": { "101": 1002 } }, or { "answers": "{\"101\": 1002}" }
                 Map<String, Object> answersMap = new HashMap<>();
@@ -81,7 +90,7 @@ public class StudentAttemptServlet extends BaseServlet {
                     }
                 }
 
-                Attempt evaluated = examService.evaluateAndSubmit(attemptId, userId != null ? userId : 0, answersMap);
+                Attempt evaluated = examService.evaluateAndSubmit(attemptId, userId, answersMap);
                 sendJson(resp, HttpServletResponse.SC_OK, evaluated);
 
             } catch (NumberFormatException e) {

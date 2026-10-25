@@ -21,6 +21,8 @@ public class StudentExamServlet extends BaseServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        if (!requireAuth(req, resp)) return;
+
         String path = req.getPathInfo();
 
         try {
@@ -60,21 +62,28 @@ public class StudentExamServlet extends BaseServlet {
             try {
                 int examId = Integer.parseInt(idStr);
 
-                // Authenticate user
+                // Authenticate user strictly from session
                 User user = getAuthenticatedUser(req);
-                Integer userId = user != null ? user.getId() : null;
-
-                if (userId == null) {
-                    // Fallback to request body if session is not yet active
-                    JsonObject body = parseJson(req, JsonObject.class);
-                    if (body != null && body.has("userId")) {
-                        userId = body.get("userId").getAsInt();
-                    }
-                }
-
-                if (userId == null) {
+                if (user == null) {
                     sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, "User authentication required to start an exam.");
                     return;
+                }
+
+                int userId = user.getId();
+
+                // Reject conflicting userId if supplied in request body
+                JsonObject body = parseJson(req, JsonObject.class);
+                if (body != null && body.has("userId")) {
+                    try {
+                        int suppliedUserId = body.get("userId").getAsInt();
+                        if (suppliedUserId != userId) {
+                            sendError(resp, HttpServletResponse.SC_FORBIDDEN, "Cannot start an exam on behalf of another user.");
+                            return;
+                        }
+                    } catch (Exception e) {
+                        sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid userId format in request.");
+                        return;
+                    }
                 }
 
                 Exam exam = examDAO.findById(examId, false, false);
