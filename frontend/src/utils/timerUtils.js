@@ -10,29 +10,42 @@ export function formatSeconds(total) {
 
 /**
  * Safely parses various date formats into epoch milliseconds.
- * Normalizes space-separated MySQL DATETIME values ("YYYY-MM-DD HH:mm:ss")
- * to ISO-8601 ("YYYY-MM-DDTHH:mm:ss") so Safari and strict JS engines do not fail with NaN.
+ * Normalizes timezone-free timestamps from the backend (such as MySQL DATETIME
+ * "YYYY-MM-DD HH:mm:ss" or ISO "YYYY-MM-DDTHH:mm:ss") to UTC ISO-8601 ("...Z")
+ * before parsing, ensuring proper countdown calculation across all client timezones.
  */
 export function parseStartTime(startTime) {
   if (!startTime && startTime !== 0) return null;
   if (typeof startTime === "number") {
-    return startTime < 1e11 ? startTime * 1000 : startTime;
+    return startTime < 1e11 ? Math.round(startTime * 1000) : Math.round(startTime);
   }
   if (typeof startTime === "string") {
     const trimmed = startTime.trim();
     if (!trimmed) return null;
 
-    // Safari fix: replace space between date and time with 'T'
-    const isoLike = trimmed.includes(" ") ? trimmed.replace(" ", "T") : trimmed;
-    const direct = Date.parse(isoLike);
-    if (!isNaN(direct)) {
-      return direct;
+    // Numeric timestamp encoded as string (epoch seconds or milliseconds)
+    if (/^\d+(\.\d+)?$/.test(trimmed)) {
+      const num = Number(trimmed);
+      if (!isNaN(num)) {
+        return num < 1e11 ? Math.round(num * 1000) : Math.round(num);
+      }
     }
 
-    // Fallback: try appending Z if timezone was omitted and direct parse failed
-    const withZ = Date.parse(isoLike + "Z");
-    if (!isNaN(withZ)) {
-      return withZ;
+    // Safari / cross-browser fix: normalize space between date and time to 'T'
+    let iso = trimmed.includes(" ") ? trimmed.replace(" ", "T") : trimmed;
+
+    // Check if a timezone offset or Z indicator is already present:
+    // - Ends in 'Z' or 'z'
+    // - Or ends with timezone offset: +HH:mm, -HH:mm, +HHmm, -HHmm, +HH, -HH
+    const hasTz = /(?:Z|[+-]\d{2}(?::?\d{2})?)$/i.test(iso);
+    if (!hasTz) {
+      // Backend timestamps without timezone information represent UTC wall-clock time
+      iso += "Z";
+    }
+
+    const direct = Date.parse(iso);
+    if (!isNaN(direct)) {
+      return direct;
     }
   }
 

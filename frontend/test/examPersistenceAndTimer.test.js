@@ -34,11 +34,11 @@ test("parseStartTime safely handles various date-time formats cross-browser", ()
   assert.ok(isoMs !== null && !isNaN(isoMs));
   assert.equal(isoMs, Date.parse(iso));
 
-  // MySQL DATETIME space-separated format (Safari fix)
+  // MySQL DATETIME space-separated format (normalized to UTC)
   const mysqlStr = "2026-10-24 10:00:00";
   const mysqlMs = parseStartTime(mysqlStr);
   assert.ok(mysqlMs !== null && !isNaN(mysqlMs));
-  assert.equal(mysqlMs, Date.parse("2026-10-24T10:00:00"));
+  assert.equal(mysqlMs, Date.parse("2026-10-24T10:00:00Z"));
 
   // Numeric epoch milliseconds
   const now = Date.now();
@@ -189,4 +189,184 @@ test("timer expiration triggers onExpire at most once", () => {
   tick(-1);
   tick(0);
   assert.equal(expireCount, 1, "onExpire must be called exactly once and not spam submissions");
+});
+
+test("A timezone-free MySQL timestamp is interpreted as UTC, not local browser time", () => {
+  // MySQL datetime format: "YYYY-MM-DD HH:mm:ss"
+  const mysqlTimestamp = "2026-10-25 09:00:00";
+  const parsed = parseStartTime(mysqlTimestamp);
+
+  // Must match the exact UTC epoch milliseconds of 2026-10-25T09:00:00Z
+  const expectedUtc = Date.parse("2026-10-25T09:00:00Z");
+  assert.equal(parsed, expectedUtc);
+  assert.equal(parsed, 1792918800000);
+});
+
+test("An exam starting at a known UTC time calculates the correct remaining duration in an IST environment", () => {
+  // Deterministic simulation:
+  // Server starts exam at 09:00:00 UTC (which is 14:30:00 IST) for 30 minutes.
+  const startTime = "2026-10-25 09:00:00";
+  const durationMinutes = 30; // Exam duration = 1800 seconds
+
+  // Case A: Candidate opens exam immediately at start time (14:30:00 IST = 09:00:00 UTC)
+  const nowAtStart = Date.parse("2026-10-25T09:00:00Z");
+  const remainingAtStart = computeRemaining(durationMinutes, startTime, nowAtStart);
+  assert.equal(remainingAtStart, 1800, "Full 30 minutes (1800s) must be remaining at start time");
+  assert.equal(formatSeconds(remainingAtStart), "30:00", "Timer must display 30:00, not 00:00");
+
+  // Case B: 10 minutes elapsed (14:40:00 IST = 09:10:00 UTC)
+  const nowAfter10Min = Date.parse("2026-10-25T09:10:00Z");
+  const remainingAfter10Min = computeRemaining(durationMinutes, startTime, nowAfter10Min);
+  assert.equal(remainingAfter10Min, 1200, "20 minutes (1200s) must remain after 10 minutes");
+  assert.equal(formatSeconds(remainingAfter10Min), "20:00");
+
+  // Case C: 29 minutes elapsed (14:59:00 IST = 09:29:00 UTC)
+  const nowAfter29Min = Date.parse("2026-10-25T09:29:00Z");
+  const remainingAfter29Min = computeRemaining(durationMinutes, startTime, nowAfter29Min);
+  assert.equal(remainingAfter29Min, 60, "1 minute (60s) must remain");
+  assert.equal(formatSeconds(remainingAfter29Min), "01:00");
+});
+
+test("ISO timestamps with Z and explicit timezone offsets remain correct", () => {
+  // Target UTC timestamp: 2026-10-25 09:00:00 UTC (1792918800000)
+  const targetUtcMs = Date.parse("2026-10-25T09:00:00Z");
+
+  // 1. ISO ending in 'Z'
+  const isoZ = "2026-10-25T09:00:00Z";
+  assert.equal(parseStartTime(isoZ), targetUtcMs);
+
+  // 2. ISO ending in lowercase 'z'
+  const isoLowerZ = "2026-10-25T09:00:00z";
+  assert.equal(parseStartTime(isoLowerZ), targetUtcMs);
+
+  // 3. Positive offset: IST (+05:30) at 14:30:00 is 09:00:00 UTC
+  const istOffset = "2026-10-25T14:30:00+05:30";
+  assert.equal(parseStartTime(istOffset), targetUtcMs);
+
+  // 4. Negative offset: EDT (-04:00) at 05:00:00 is 09:00:00 UTC
+  const edtOffset = "2026-10-25T05:00:00-04:00";
+  assert.equal(parseStartTime(edtOffset), targetUtcMs);
+
+  // 5. Offset without colon: +0530
+  const noColonOffset = "2026-10-25T14:30:00+0530";
+  assert.equal(parseStartTime(noColonOffset), targetUtcMs);
+});
+
+test("Invalid or missing start times do not cause an immediate empty submission while the attempt is still initializing", () => {
+  const durationMinutes = 30;
+  const fullDurationSeconds = 30 * 60; // 1800s
+
+  const invalidInputs = [null, undefined, "", "   ", "invalid-date", "NaN", false];
+
+  for (const input of invalidInputs) {
+    // 1. parseStartTime must return null for uninitialized or invalid start times
+    const parsed = parseStartTime(input);
+    assert.equal(parsed, null, `Input '${input}' must parse to null`);
+
+    // 2. computeRemaining must default to full duration, never 0
+    const remaining = computeRemaining(durationMinutes, input);
+    assert.equal(remaining, fullDurationSeconds, `Input '${input}' must not flash 00:00`);
+
+    // 3. Simulated Timer guard: Timer component must not trigger expiration if inputs are invalid
+    let expired = false;
+    const startMs = parseStartTime(input);
+    const durationNum = Number(durationMinutes);
+    if (startMs !== null && !isNaN(durationNum) && durationNum > 0) {
+      expired = true;
+    }
+    assert.equal(expired, false, `Input '${input}' must never trigger onExpire()`);
+  }
+});
+
+test("A genuinely expired exam triggers onExpire() exactly once", () => {
+  // Deterministic simulation:
+  // 30 minute exam started at 09:00:00 UTC. Now is 09:35:00 UTC (5 minutes overdue).
+  const startTime = "2026-10-25 09:00:00";
+  const durationMinutes = 30;
+  const overdueNow = Date.parse("2026-10-25T09:35:00Z");
+
+  let expireCount = 0;
+  const onExpire = () => {
+    expireCount++;
+  };
+
+  // Timer component expiration simulation
+  const startMs = parseStartTime(startTime);
+  const durationNum = Number(durationMinutes);
+  assert.ok(startMs !== null && durationNum > 0);
+
+  const endMs = startMs + durationNum * 60 * 1000;
+  let hasExpired = false;
+
+  const evaluateTick = (currentNow) => {
+    const left = Math.max(0, Math.round((endMs - currentNow) / 1000));
+    if (left <= 0) {
+      if (!hasExpired) {
+        hasExpired = true;
+        onExpire();
+      }
+    }
+    return left;
+  };
+
+  // First check on mount when overdue
+  const left1 = evaluateTick(overdueNow);
+  assert.equal(left1, 0);
+  assert.equal(expireCount, 1, "Must trigger onExpire once when genuinely expired");
+
+  // Subsequent re-evaluations or intervals must NOT fire again
+  const left2 = evaluateTick(overdueNow + 1000);
+  assert.equal(left2, 0);
+  assert.equal(expireCount, 1, "Must not trigger onExpire multiple times");
+
+  const left3 = evaluateTick(overdueNow + 5000);
+  assert.equal(left3, 0);
+  assert.equal(expireCount, 1, "Still must be exactly 1");
+});
+
+test("The latest selected answers remain available when a legitimate timer expiration triggers submission", () => {
+  const attemptId = 8801;
+  mockStorage.clear();
+
+  // Student answers Question 101 with Option 1002, and Question 102 with Option 1006
+  const selectedAnswers = { "101": 1002, "102": 1006 };
+  savePersistedAnswers(attemptId, selectedAnswers);
+
+  // Simulating ExamPage refs and state
+  const answersRef = { current: { ...selectedAnswers } };
+  let submittedPayload = null;
+
+  // On legitimate timer expiration, the submit callback is invoked:
+  const handleTimerExpiration = () => {
+    let answersToSubmit = answersRef.current;
+    if (!answersToSubmit || Object.keys(answersToSubmit).length === 0) {
+      answersToSubmit = loadPersistedAnswers(attemptId);
+    }
+    submittedPayload = {
+      answers: answersToSubmit,
+      userId: 2,
+    };
+  };
+
+  handleTimerExpiration();
+
+  // Assertions: Selected answers are present and not empty
+  assert.ok(submittedPayload !== null);
+  assert.deepEqual(submittedPayload.answers, selectedAnswers);
+  assert.equal(submittedPayload.answers["101"], 1002);
+  assert.equal(submittedPayload.answers["102"], 1006);
+
+  // Even if answersRef was somehow lost/cleared in memory, sessionStorage provides the fallback
+  answersRef.current = {};
+  let fallbackPayload = null;
+  const handleFallbackExpiration = () => {
+    let answersToSubmit = answersRef.current;
+    if (!answersToSubmit || Object.keys(answersToSubmit).length === 0) {
+      answersToSubmit = loadPersistedAnswers(attemptId);
+    }
+    fallbackPayload = { answers: answersToSubmit, userId: 2 };
+  };
+
+  handleFallbackExpiration();
+  assert.deepEqual(fallbackPayload.answers, selectedAnswers, "SessionStorage fallback restores selected answers");
 });

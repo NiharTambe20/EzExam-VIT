@@ -16,11 +16,14 @@ export default function Timer({ durationMinutes, startTime, onExpire }) {
 
   useEffect(() => {
     const startMs = parseStartTime(startTime);
-    if (startMs === null || !durationMinutes) {
+    const durationNum = Number(durationMinutes);
+
+    // Guard: Do not calculate or expire if inputs are not yet loaded or invalid
+    if (startMs === null || isNaN(durationNum) || durationNum <= 0) {
       return;
     }
 
-    const endMs = startMs + Number(durationMinutes) * 60 * 1000;
+    const endMs = startMs + durationNum * 60 * 1000;
 
     const tick = () => {
       const left = Math.max(0, Math.round((endMs - Date.now()) / 1000));
@@ -33,8 +36,11 @@ export default function Timer({ durationMinutes, startTime, onExpire }) {
       }
     };
 
-    // If already expired at effect setup, notify once and avoid starting interval
+    // Calculate current remaining duration on effect mount with validated inputs
     const currentLeft = Math.max(0, Math.round((endMs - Date.now()) / 1000));
+    setRemaining(currentLeft);
+
+    // If genuinely expired at effect setup, notify once and avoid starting interval
     if (currentLeft <= 0) {
       if (!hasExpiredRef.current) {
         hasExpiredRef.current = true;
@@ -43,6 +49,8 @@ export default function Timer({ durationMinutes, startTime, onExpire }) {
       return;
     }
 
+    // Active countdown
+    hasExpiredRef.current = false;
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [durationMinutes, startTime]);
