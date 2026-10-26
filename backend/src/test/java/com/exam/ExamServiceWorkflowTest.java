@@ -5,7 +5,6 @@ import com.exam.dao.ExamDAO;
 import com.exam.dao.QuestionDAO;
 import com.exam.model.Attempt;
 import com.exam.model.Exam;
-import com.exam.model.Option;
 import com.exam.model.Question;
 import com.exam.service.ExamService;
 import org.junit.jupiter.api.AfterEach;

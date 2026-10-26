@@ -7,7 +7,6 @@ import com.exam.dao.UserDAO;
 import com.exam.model.Exam;
 import com.exam.model.Question;
 import com.exam.util.DateTimeUtil;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import jakarta.servlet.annotation.WebServlet;

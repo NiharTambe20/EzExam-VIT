@@ -429,6 +429,7 @@ public class AuthenticationSecurityTest {
 
     private static class MockRequest {
         private final String pathInfo;
+        @SuppressWarnings("unused")
         private final String method;
         private final MockSessionHolder sessionHolder;
         private final Map<String, String> params;
@@ -468,7 +469,6 @@ public class AuthenticationSecurityTest {
                         if ("getPathInfo".equals(name)) return pathInfo;
                         if ("getParameter".equals(name)) return params.get(args[0]);
                         if ("getSession".equals(name)) {
-                            boolean create = (args != null && args.length > 0) ? (Boolean) args[0] : true;
                             if (sessionHolder != null) return sessionHolder.asHttpSession();
                             return null;
                         }
