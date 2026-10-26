@@ -1,15 +1,22 @@
 // Real HTTP REST client connecting to the Java Servlet backend via Vite proxy (/api -> Tomcat /ezexam/api)
 // Replaces previous browser localStorage mock per PRD §23 contract.
 
-async function request(endpoint, options = {}) {
-  const res = await fetch(endpoint, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-    credentials: "include", // Sends session cookies (JSESSIONID) for stateful auth
-  });
+export async function request(endpoint, options = {}) {
+  let res;
+  try {
+    res = await fetch(endpoint, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+      credentials: "include", // Sends session cookies (JSESSIONID) for stateful auth
+    });
+  } catch {
+    throw new Error(
+      "Unable to connect to the examination server. Please check your network connection and try again."
+    );
+  }
 
   const text = await res.text();
   let data = null;
@@ -22,7 +29,31 @@ async function request(endpoint, options = {}) {
   }
 
   if (!res.ok) {
-    const errorMsg = (data && data.error) ? data.error : (res.statusText || "Request failed");
+    let errorMsg = null;
+    if (data && typeof data === "object") {
+      errorMsg = data.error || data.message;
+    } else if (typeof data === "string" && data.trim() && !data.trim().startsWith("<")) {
+      errorMsg = data.trim();
+    }
+
+    if (!errorMsg) {
+      if (res.status === 504) {
+        errorMsg = "Server took too long to respond (504 Gateway Timeout). If the backend is waking up from standby, please wait a few seconds and try again.";
+      } else if (res.status === 502 || res.status === 503) {
+        errorMsg = "Backend examination service is temporarily unavailable (502/503). Please try again shortly.";
+      } else if (res.status === 500) {
+        errorMsg = "An internal server error occurred (500). Please try again later.";
+      } else if (res.status === 401) {
+        errorMsg = "Invalid credentials. Please verify your email and password.";
+      } else if (res.status === 403) {
+        errorMsg = "Access denied: Unauthorized operation (403).";
+      } else if (res.status === 404) {
+        errorMsg = "Requested endpoint was not found (404).";
+      } else {
+        errorMsg = res.statusText || `Request failed with status ${res.status}`;
+      }
+    }
+
     throw new Error(errorMsg);
   }
 
