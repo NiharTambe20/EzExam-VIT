@@ -404,5 +404,5 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 
 * **Nihar Tambe** — [@NiharTambe20](https://github.com/NiharTambe20)
 * **Gaurang Khochare** — [@gaurangkhochare](https://github.com/gaurangkhochare)
-*** Vivek Tambat**
+* **Vivek Tambat** - [@vivektambat16](https://github.com/vivektambat16)
   
