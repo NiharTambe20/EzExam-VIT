@@ -29,6 +29,7 @@ public class ExamService {
      * Prevents double-submission, verifies attempt ownership, ensures atomic transaction safety,
      * and reuses a single database connection to eliminate connection pooling overhead.
      */
+    @SuppressWarnings("unlikely-arg-type")
     public Attempt evaluateAndSubmit(int attemptId, int userId, Map<String, Object> answersMap) throws SQLException, IllegalAccessException {
         try (Connection con = DBConnection.getConnection()) {
             Attempt attempt = attemptDAO.findById(con, attemptId);
